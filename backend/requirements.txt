@@ -1,0 +1,4 @@
+fastapi==0.95.2
+uvicorn==0.22.0
+kubernetes==26.1.0
+python-dotenv==1.0.0
