@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from k8s_client import KubernetesClient
+from llm_helper import LLMHelper
 import logging
 from pydantic import BaseModel
 
@@ -16,6 +17,7 @@ app.add_middleware(
 )
 
 k8s = KubernetesClient()
+llm_helper = LLMHelper()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -88,6 +90,24 @@ def get_pod_logs(name: str, namespace: str = "default", tail_lines: int = 10):
         return {"logs": logs}
     except Exception as e:
         logger.error(f"Error getting pod logs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/pods/{name}/logs/summary")
+def get_pod_logs_summary(name: str, namespace: str = "default", tail_lines: int = 50, max_tokens: int = 500):
+    try:
+        # Get the logs first
+        logs = k8s.get_pod_logs(name, namespace, tail_lines)
+        
+        if not logs:
+            return {"summary": "No logs available for summarization", "original_logs": ""}
+        
+        # Generate summary using LLM
+        summary = llm_helper.generate_summary(logs, max_tokens)
+        
+        return {"summary": summary, "original_logs": logs}
+            
+    except Exception as e:
+        logger.error(f"Error getting pod logs summary: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/jobs")

@@ -122,14 +122,35 @@ with tab4:
     pod_name = st.text_input("Pod Name")
     tail_lines = st.number_input("Number of lines to fetch", min_value=1, value=50)
     
-    if st.button("Get Logs") and pod_name:
-        response = requests.get(
-            f"{BACKEND_URL}/pods/{pod_name}/logs",
-            params={"namespace": namespace, "tail_lines": tail_lines}
-        )
-        if response.status_code == 200:
-            logs = response.json().get("logs", "No logs available")
-            st.subheader(f"Logs for {pod_name}")
-            st.code(logs)
-        else:
-            st.error(f"Error fetching logs: {response.json().get('detail')}")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("Get Logs") and pod_name:
+            response = requests.get(
+                f"{BACKEND_URL}/pods/{pod_name}/logs",
+                params={"namespace": namespace, "tail_lines": tail_lines}
+            )
+            if response.status_code == 200:
+                logs = response.json().get("logs", "No logs available")
+                st.subheader(f"Logs for {pod_name}")
+                st.code(logs)
+            else:
+                st.error(f"Error fetching logs: {response.json().get('detail')}")
+    
+    with col2:
+        if st.button("Log Summary") and pod_name:
+            max_tokens = st.number_input("Maximum summary tokens", min_value=100, value=500, key="summary_tokens")
+            with st.spinner("Generating AI summary..."):
+                response = requests.get(
+                    f"{BACKEND_URL}/pods/{pod_name}/logs/summary",
+                    params={"namespace": namespace, "tail_lines": tail_lines, "max_tokens": max_tokens}
+                )
+                if response.status_code == 200:
+                    result = response.json()
+                    st.subheader(f"AI Summary for {pod_name}")
+                    st.write(result["summary"])
+                    
+                    with st.expander("View Original Logs"):
+                        st.code(result["original_logs"])
+                else:
+                    st.error(f"Error generating log summary: {response.json().get('detail')}")
